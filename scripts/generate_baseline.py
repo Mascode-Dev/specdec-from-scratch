@@ -19,6 +19,7 @@ generated = []
 past_key_values = None
 temperature = 1.3
 
+torch.cuda.reset_peak_memory_stats()
 torch.cuda.synchronize(); t0 = time.time()
 with torch.inference_mode():
     out = model(input_ids=input_ids, attention_mask=attn, use_cache=True)
@@ -26,6 +27,8 @@ with torch.inference_mode():
 
     # each step take next_id, then forward only the NEW token
     position_ids = torch.tensor([[input_ids.shape[1]]], device="cuda")  # first new position
+    
+    
     for _ in range(MAX_NEW - 1):
 
         if temperature > 0:
@@ -43,7 +46,13 @@ with torch.inference_mode():
         position_ids += 1
         if next_id.item() == tokenizer.eos_token_id:
             break
+
+# torch.cuda.max_memory_allocated() / 1024**2
 torch.cuda.synchronize(); dt = time.time() - t0
+
+
+# Display memory usage
+print(f"Peak memory usage: {torch.cuda.max_memory_allocated() / 1024**2:.2f} MB")
 
 print(tokenizer.decode(input_ids[0, prompt_len:]))
 print(f"{len(generated)} tokens in {dt:.2f}s -> {len(generated)/dt:.2f} tok/s")
